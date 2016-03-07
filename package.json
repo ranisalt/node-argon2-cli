@@ -1,0 +1,42 @@
+{
+  "name": "argon2-cli",
+  "version": "0.1.0",
+  "description": "A CLI tool for argon2 hashing",
+  "main": "cli.js",
+  "bin": "cli.js",
+  "scripts": {
+    "test": "xo && babel-tap test.spec.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ranisalt/node-argon2-cli.git"
+  },
+  "keywords": [
+    "argon2",
+    "crypto",
+    "encryption",
+    "hashing",
+    "password",
+    "cli"
+  ],
+  "author": "Ranieri Althoff <ranisalt+argon2@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ranisalt/node-argon2-cli/issues"
+  },
+  "homepage": "https://github.com/ranisalt/node-argon2-cli#readme",
+  "dependencies": {
+    "argon2": "^0.10.0",
+    "argparse": "^1.0.6"
+  },
+  "devDependencies": {
+    "babel-tap": "^4.0.0",
+    "xo": "^0.13.0"
+  },
+  "engines": {
+    "node": ">=4.0.0"
+  },
+  "xo": {
+    "space": 2
+  }
+}

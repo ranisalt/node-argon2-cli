@@ -1,0 +1,26 @@
+sudo: required
+dist: trusty
+language: node_js
+node_js:
+  - "4.0"
+  - "4.1"
+  - "4.2"
+  - "4.3"
+  - "5.0"
+  - "5.1"
+  - "5.2"
+  - "5.3"
+  - "5.4"
+  - "5.5"
+  - "5.6"
+  - node
+matrix:
+  allow_failures:
+    - node_js: "4.0"
+    - node_js: "4.1"
+    - node_js: "4.2"
+    - node_js: "4.3"
+before_script: npm install -g coveralls nyc
+after_success:
+  - nyc --reporter=lcov npm test
+  - coveralls < coverage/lcov.info

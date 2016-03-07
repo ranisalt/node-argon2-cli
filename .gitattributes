@@ -1,0 +1,2 @@
+*.gyp linguist-vendored
+*.spec.js linguist-vendored

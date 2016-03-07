@@ -1,0 +1,5 @@
+ISSUE_TEMPLATE.md
+.editorconfig
+.git*
+.idea
+.travis.yml

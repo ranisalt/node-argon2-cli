@@ -8,8 +8,8 @@ const salt = 'somesalt';
 
 // hashes for argon2i and argon2d with default options
 const hashes = Object.freeze({
-  argon2i: '\\$argon2i\\$m=4096,t=3,p=1\\$c29tZXNhbHQ\\$vpOd0mbc3AzXEHMgcTb1CrZt5XuoRQuz1kQtGBv7ejk',
-  argon2d: '\\$argon2d\\$m=4096,t=3,p=1\\$c29tZXNhbHQ\\$/rwrGjZ1NrS+TEgQxricD7B57yJMKGQ/uov96abC6ko'
+  argon2i: '\\$argon2i\\$v=19\\$m=4096,t=3,p=1\\$c29tZXNhbHQ\\$iWh06vD8Fy27wf9npn6FXWiCX4K6pW6Ue1Bnzz07Z8A',
+  argon2d: '\\$argon2d\\$v=19\\$m=4096,t=3,p=1\\$c29tZXNhbHQ\\$2+JCoQtY/2x5F0VB9pEVP3xBNguWP1T25Ui0PtZuk8o'
 });
 
 t.test('hash with defaults', t => {
@@ -391,7 +391,7 @@ t.test('hash with all options', t => {
     t.match(output[1], /Iterations:\s*4/);
     t.match(output[2], /Memory:\s*8192 KiB/);
     t.match(output[3], /Parallelism:\s*2/);
-    t.match(output[4], /Encoded:.*\$argon2d\$m=8192,t=4,p=2\$/);
+    t.match(output[4], /Encoded:.*\$argon2d\$v=19\$m=8192,t=4,p=2\$/);
     t.match(output[6], /Verification ok/);
   });
 

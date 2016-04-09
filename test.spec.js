@@ -1,5 +1,5 @@
-const argon2 = require('argon2');
 const spawn = require('child_process').spawn;
+const argon2 = require('argon2');
 const t = require('tap');
 
 const defaults = argon2.defaults;

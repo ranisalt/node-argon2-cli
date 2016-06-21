@@ -31,6 +31,7 @@
   },
   "devDependencies": {
     "babel-tap": "^4.0.0",
+    "tap": "^5.7.3",
     "xo": "^0.16.0"
   },
   "engines": {

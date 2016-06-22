@@ -4,7 +4,6 @@ const t = require('tap');
 
 const defaults = argon2.defaults;
 const limits = argon2.limits;
-const salt = 'somesalt';
 
 // hashes for argon2i and argon2d with default options
 const hashes = Object.freeze({
@@ -12,21 +11,39 @@ const hashes = Object.freeze({
   argon2d: '\\$argon2d\\$v=19\\$m=4096,t=3,p=1\\$c29tZXNhbHQ\\$2+JCoQtY/2x5F0VB9pEVP3xBNguWP1T25Ui0PtZuk8o'
 });
 
-t.test('hash with defaults', t => {
+const genChild = params => new Promise((resolve, reject) => {
   'use strict';
 
-  t.plan(8);
-
-  const child = spawn('./cli.js', [salt]);
+  const child = spawn('./cli.js', params.split(' ').filter(Boolean));
   child.stdin.end('password');
 
+  let errbuf = new Buffer(0);
   let outbuf = new Buffer(0);
+
+  child.stderr.on('data', data => {
+    errbuf = Buffer.concat([errbuf, data]);
+  });
+
   child.stdout.on('data', data => {
     outbuf = Buffer.concat([outbuf, data]);
   });
 
-  child.stdout.on('end', () => {
-    const output = outbuf.toString().split('\n');
+  child.on('close', () => {
+    if (errbuf.length) {
+      reject(errbuf.toString());
+    } else {
+      resolve(outbuf.toString());
+    }
+  });
+});
+
+t.test('hash with defaults', t => {
+  'use strict';
+
+  t.plan(7);
+
+  return genChild('somesalt').then(output => {
+    output = output.split('\n');
     t.match(output[0], /Type:\s*Argon2i/);
     t.match(output[1], new RegExp(`Iterations:\\s*${defaults.timeCost}`));
     t.match(output[2], new RegExp(`Memory:\\s*${1 << defaults.memoryCost} KiB`));
@@ -35,391 +52,174 @@ t.test('hash with defaults', t => {
     t.match(output[5], /\d+.\d{3} seconds/);
     t.match(output[6], /Verification ok/);
   });
-
-  child.on('close', code => {
-    t.equal(code, 0);
-  });
 });
 
 t.test('hash with generated salt', t => {
   'use strict';
 
-  t.plan(3);
+  t.plan(1);
 
-  const child = spawn('./cli.js');
-  child.stdin.end('password');
-
-  let outbuf = new Buffer(0);
-  child.stdout.on('data', data => {
-    outbuf = Buffer.concat([outbuf, data]);
-  });
-
-  child.stdout.on('end', () => {
-    const output = outbuf.toString().split('\n');
-    t.match(output[4], /Encoded:.*\$.{22}\$[^$]*$/);
-    t.match(output[6], /Verification ok/);
-  });
-
-  child.on('close', code => {
-    t.equal(code, 0);
+  return genChild('').then(output => {
+    t.match(output, /^Encoded:.*\$.{22}\$[^$]*$/m);
   });
 });
 
 t.test('hash with argon2d', t => {
   'use strict';
 
-  t.plan(4);
+  t.plan(2);
 
-  const child = spawn('./cli.js', [salt, '-d']);
-  child.stdin.end('password');
-
-  let outbuf = new Buffer(0);
-  child.stdout.on('data', data => {
-    outbuf = Buffer.concat([outbuf, data]);
-  });
-
-  child.stdout.on('end', () => {
-    const output = outbuf.toString().split('\n');
-    t.match(output[0], /Type:\s*Argon2d/);
-    t.match(output[4], /Encoded:.*\$argon2d\$/);
-    t.match(output[6], /Verification ok/);
-  });
-
-  child.on('close', code => {
-    t.equal(code, 0);
+  return genChild('somesalt -d').then(output => {
+    t.match(output, /^Type:\s+Argon2d$/m);
+    t.match(output, /^Encoded:.*\$argon2d\$/m);
   });
 });
 
 t.test('hash with time cost', t => {
   'use strict';
 
-  t.plan(4);
+  t.plan(2);
 
-  const child = spawn('./cli.js', [salt, '-t', '4']);
-  child.stdin.end('password');
-
-  let outbuf = new Buffer(0);
-  child.stdout.on('data', data => {
-    outbuf = Buffer.concat([outbuf, data]);
-  });
-
-  child.stdout.on('end', () => {
-    const output = outbuf.toString().split('\n');
-    t.match(output[1], /Iterations:\s*4/);
-    t.match(output[4], /Encoded:.*,t=4,/);
-    t.match(output[6], /Verification ok/);
-  });
-
-  child.on('close', code => {
-    t.equal(code, 0);
+  return genChild('-t 4').then(output => {
+    t.match(output, /^Iterations:\s*4/m);
+    t.match(output, /^Encoded:.*,t=4,/m);
   });
 });
 
 t.test('hash with invalid time cost', t => {
   'use strict';
 
-  t.plan(2);
+  t.plan(1);
 
-  const child = spawn('./cli.js', [salt, '-t', 'foo']);
-  child.stdin.end('password');
-
-  let outbuf = new Buffer(0);
-  child.stderr.on('data', data => {
-    outbuf = Buffer.concat([outbuf, data]);
-  });
-
-  child.stderr.on('end', () => {
-    const output = outbuf.toString();
-    t.match(output, /Error: Invalid timeCost.+must be an integer/);
-  });
-
-  child.on('close', code => {
-    t.equal(code, 22);
+  return genChild('-t foo').catch(err => {
+    t.match(err, /Error: Invalid timeCost.+must be an integer/);
   });
 });
 
 t.test('hash with low time cost', t => {
   'use strict';
 
-  t.plan(2);
+  t.plan(1);
 
-  const child = spawn('./cli.js', [salt, '-t', limits.timeCost.min - 1]);
-  child.stdin.end('password');
-
-  let outbuf = new Buffer(0);
-  child.stderr.on('data', data => {
-    outbuf = Buffer.concat([outbuf, data]);
-  });
-
-  child.stderr.on('end', () => {
-    const output = outbuf.toString();
-    t.match(output, /Error: Invalid timeCost.+between \d+ and \d+/);
-  });
-
-  child.on('close', code => {
-    t.equal(code, 22);
+  return genChild(`-t ${limits.timeCost.min - 1}`).catch(err => {
+    t.match(err, /Error: Invalid timeCost.+between \d+ and \d+/);
   });
 });
 
 t.test('hash with high time cost', t => {
   'use strict';
 
-  t.plan(2);
+  t.plan(1);
 
-  const child = spawn('./cli.js', [salt, '-t', limits.timeCost.max + 1]);
-  child.stdin.end('password');
-
-  let outbuf = new Buffer(0);
-  child.stderr.on('data', data => {
-    outbuf = Buffer.concat([outbuf, data]);
-  });
-
-  child.stderr.on('end', () => {
-    const output = outbuf.toString();
-    t.match(output, /Error: Invalid timeCost.+between \d+ and \d+/);
-  });
-
-  child.on('close', code => {
-    t.equal(code, 22);
+  return genChild(`-t ${limits.timeCost.max + 1}`).catch(err => {
+    t.match(err, /Error: Invalid timeCost.+between \d+ and \d+/);
   });
 });
 
 t.test('hash with memory cost', t => {
   'use strict';
 
-  t.plan(4);
+  t.plan(2);
 
-  const child = spawn('./cli.js', [salt, '-m', '13']);
-  child.stdin.end('password');
-
-  let outbuf = new Buffer(0);
-  child.stdout.on('data', data => {
-    outbuf = Buffer.concat([outbuf, data]);
-  });
-
-  child.stdout.on('end', () => {
-    const output = outbuf.toString().split('\n');
-    t.match(output[2], /Memory:\s*8192 KiB/);
-    t.match(output[4], /Encoded:.*\$m=8192,/);
-    t.match(output[6], /Verification ok/);
-  });
-
-  child.on('close', code => {
-    t.equal(code, 0);
+  return genChild('-m 13').then(output => {
+    t.match(output, /^Memory:\s*8192 KiB$/m);
+    t.match(output, /^Encoded:.*\$m=8192,/m);
   });
 });
 
 t.test('hash with invalid memory cost', t => {
   'use strict';
 
-  t.plan(2);
+  t.plan(1);
 
-  const child = spawn('./cli.js', [salt, '-m', 'foo']);
-  child.stdin.end('password');
-
-  let outbuf = new Buffer(0);
-  child.stderr.on('data', data => {
-    outbuf = Buffer.concat([outbuf, data]);
-  });
-
-  child.stderr.on('end', () => {
-    const output = outbuf.toString();
-    t.match(output, /Error: Invalid memoryCost.+must be an integer/);
-  });
-
-  child.on('close', code => {
-    t.equal(code, 22);
+  return genChild('-m foo').catch(err => {
+    t.match(err, /Error: Invalid memoryCost.+must be an integer/);
   });
 });
 
 t.test('hash with low memory cost', t => {
   'use strict';
 
-  t.plan(2);
+  t.plan(1);
 
-  const child = spawn('./cli.js', [salt, '-m', limits.memoryCost.min - 1]);
-  child.stdin.end('password');
-
-  let outbuf = new Buffer(0);
-  child.stderr.on('data', data => {
-    outbuf = Buffer.concat([outbuf, data]);
-  });
-
-  child.stderr.on('end', () => {
-    const output = outbuf.toString();
-    t.match(output, /Error: Invalid memoryCost.+between \d+ and \d+/);
-  });
-
-  child.on('close', code => {
-    t.equal(code, 22);
+  return genChild(`-m ${limits.memoryCost.min - 1}`).catch(err => {
+    t.match(err, /Error: Invalid memoryCost.+between \d+ and \d+/);
   });
 });
 
 t.test('hash with high memory cost', t => {
   'use strict';
 
-  t.plan(2);
+  t.plan(1);
 
-  const child = spawn('./cli.js', [salt, '-m', limits.memoryCost.max + 1]);
-  child.stdin.end('password');
-
-  let outbuf = new Buffer(0);
-  child.stderr.on('data', data => {
-    outbuf = Buffer.concat([outbuf, data]);
-  });
-
-  child.stderr.on('end', () => {
-    const output = outbuf.toString();
-    t.match(output, /Error: Invalid memoryCost.+between \d+ and \d+/);
-  });
-
-  child.on('close', code => {
-    t.equal(code, 22);
+  return genChild(`-m ${limits.memoryCost.max + 1}`).catch(err => {
+    t.match(err, /Error: Invalid memoryCost.+between \d+ and \d+/);
   });
 });
 
 t.test('hash with parallelism', t => {
   'use strict';
 
-  t.plan(4);
+  t.plan(2);
 
-  const child = spawn('./cli.js', [salt, '-p', '2']);
-  child.stdin.end('password');
-
-  let outbuf = new Buffer(0);
-  child.stdout.on('data', data => {
-    outbuf = Buffer.concat([outbuf, data]);
-  });
-
-  child.stdout.on('end', () => {
-    const output = outbuf.toString().split('\n');
-    t.match(output[3], /Parallelism:\s*2/);
-    t.match(output[4], /Encoded:.*,p=2\$/);
-    t.match(output[6], /Verification ok/);
-  });
-
-  child.on('close', code => {
-    t.equal(code, 0);
+  return genChild('-p 2').then(output => {
+    t.match(output, /^Parallelism:\s*2$/m);
+    t.match(output, /^Encoded:.*,p=2\$/m);
   });
 });
 
 t.test('hash with invalid parallelism', t => {
   'use strict';
 
-  t.plan(2);
+  t.plan(1);
 
-  const child = spawn('./cli.js', [salt, '-p', 'foo']);
-  child.stdin.end('password');
-
-  let outbuf = new Buffer(0);
-  child.stderr.on('data', data => {
-    outbuf = Buffer.concat([outbuf, data]);
-  });
-
-  child.stderr.on('end', () => {
-    const output = outbuf.toString();
-    t.match(output, /Error: Invalid parallelism.+must be an integer/);
-  });
-
-  child.on('close', code => {
-    t.equal(code, 22);
+  return genChild('-p foo').catch(err => {
+    t.match(err, /Error: Invalid parallelism.+must be an integer/);
   });
 });
 
 t.test('hash with low parallelism', t => {
   'use strict';
 
-  t.plan(2);
+  t.plan(1);
 
-  const child = spawn('./cli.js', [salt, '-p', limits.parallelism.min - 1]);
-  child.stdin.end('password');
-
-  let outbuf = new Buffer(0);
-  child.stderr.on('data', data => {
-    outbuf = Buffer.concat([outbuf, data]);
-  });
-
-  child.stderr.on('end', () => {
-    const output = outbuf.toString();
-    t.match(output, /Error: Invalid parallelism.+between \d+ and \d+/);
-  });
-
-  child.on('close', code => {
-    t.equal(code, 22);
+  return genChild(`-p ${limits.parallelism.min - 1}`).catch(err => {
+    t.match(err, /Error: Invalid parallelism.+between \d+ and \d+/);
   });
 });
 
 t.test('hash with high parallelism', t => {
   'use strict';
 
-  t.plan(2);
+  t.plan(1);
 
-  const child = spawn('./cli.js', [salt, '-p', limits.parallelism.max + 1]);
-  child.stdin.end('password');
-
-  let outbuf = new Buffer(0);
-  child.stderr.on('data', data => {
-    outbuf = Buffer.concat([outbuf, data]);
-  });
-
-  child.stderr.on('end', () => {
-    const output = outbuf.toString();
-    t.match(output, /Error: Invalid parallelism.+between \d+ and \d+/);
-  });
-
-  child.on('close', code => {
-    t.equal(code, 22);
+  return genChild(`-p ${limits.parallelism.max + 1}`).catch(err => {
+    t.match(err, /Error: Invalid parallelism.+between \d+ and \d+/);
   });
 });
 
 t.test('hash with all options', t => {
   'use strict';
 
-  t.plan(7);
+  t.plan(6);
 
-  const child = spawn('./cli.js', [salt, '-d', '-t', '4', '-m', '13', '-p', '2']);
-  child.stdin.end('password');
-
-  let outbuf = new Buffer(0);
-  child.stdout.on('data', data => {
-    outbuf = Buffer.concat([outbuf, data]);
-  });
-
-  child.stdout.on('end', () => {
-    const output = outbuf.toString().split('\n');
-    t.match(output[0], /Type:\s*Argon2d/);
-    t.match(output[1], /Iterations:\s*4/);
-    t.match(output[2], /Memory:\s*8192 KiB/);
-    t.match(output[3], /Parallelism:\s*2/);
-    t.match(output[4], /Encoded:.*\$argon2d\$v=19\$m=8192,t=4,p=2\$/);
-    t.match(output[6], /Verification ok/);
-  });
-
-  child.on('close', code => {
-    t.equal(code, 0);
+  return genChild('-d -t 4 -m 13 -p 2').then(output => {
+    t.match(output, /^Type:\s*Argon2d$/m);
+    t.match(output, /^Iterations:\s*4$/m);
+    t.match(output, /^Memory:\s*8192 KiB$/m);
+    t.match(output, /^Parallelism:\s*2$/m);
+    t.match(output, /^Encoded:.*\$argon2d\$v=19\$m=8192,t=4,p=2\$/m);
+    t.match(output, /^Verification ok$/m);
   });
 });
 
 t.test('hash quiet', t => {
   'use strict';
 
-  t.plan(2);
+  t.plan(1);
 
-  const child = spawn('./cli.js', [salt, '-q']);
-  child.stdin.end('password');
-
-  let outbuf = new Buffer(0);
-  child.stdout.on('data', data => {
-    outbuf = Buffer.concat([outbuf, data]);
-  });
-
-  child.stdout.on('end', () => {
+  return genChild('somesalt -q').then(output => {
     // trim the trailing newline
-    const output = outbuf.toString().trim();
-    t.match(output, new RegExp(`^${hashes.argon2i}$`));
-  });
-
-  child.on('close', code => {
-    t.equal(code, 0);
+    t.match(output.trim(), new RegExp(`^${hashes.argon2i}$`));
   });
 });

@@ -5,7 +5,7 @@
   "main": "cli.js",
   "bin": "cli.js",
   "scripts": {
-    "test": "xo && babel-tap test.spec.js"
+    "test": "xo && tap test.spec.js"
   },
   "repository": {
     "type": "git",
@@ -30,7 +30,6 @@
     "argparse": "^1.0.6"
   },
   "devDependencies": {
-    "babel-tap": "^4.0.0",
     "tap": "^5.7.3",
     "xo": "^0.16.0"
   },

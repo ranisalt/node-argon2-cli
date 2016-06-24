@@ -30,7 +30,7 @@
     "argparse": "^1.0.6"
   },
   "devDependencies": {
-    "tap": "^5.7.3",
+    "tap": "^5.8.0",
     "xo": "^0.16.0"
   },
   "engines": {

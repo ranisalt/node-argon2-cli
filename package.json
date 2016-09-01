@@ -26,7 +26,7 @@
   },
   "homepage": "https://github.com/ranisalt/node-argon2-cli#readme",
   "dependencies": {
-    "argon2": "^0.12.0",
+    "argon2": "^0.13.0",
     "argparse": "^1.0.6"
   },
   "devDependencies": {

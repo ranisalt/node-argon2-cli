@@ -1,4 +1,6 @@
 # node-argon2-cli [![NPM package][npm-image]][npm-url] [![Build status][travis-image]][travis-url] [![Coverage status][coverage-image]][coverage-url] [![Code Quality][codequality-image]][codequality-url] [![Dependencies][david-dm-image]][david-dm-url]
+
+[![Greenkeeper badge](https://badges.greenkeeper.io/ranisalt/node-argon2-cli.svg)](https://greenkeeper.io/)
 CLI utility for [node-argon2](https://github.com/ranisalt/node-argon2).
 
 **Want to use it in your Javascript application? Instead check

@@ -26,12 +26,12 @@
   },
   "homepage": "https://github.com/ranisalt/node-argon2-cli#readme",
   "dependencies": {
-    "argon2": "^0.14.0",
+    "argon2": "^0.15.0",
     "argparse": "^1.0.6"
   },
   "devDependencies": {
     "tap": "^10.0.0",
-    "xo": "^0.16.0"
+    "xo": "^0.17.1"
   },
   "engines": {
     "node": ">=4.0.0"

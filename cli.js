@@ -1,96 +1,157 @@
 #!/usr/bin/env node
-'use strict';
 
-const argon2 = require('argon2');
-const argparse = require('argparse');
+const argon2 = require('argon2')
+const argparse = require('argparse')
 
-const hash = (password, args) => {
-  const options = {
-    argon2d: args.argon2d,
-    memoryCost: parseInt(args.memoryCost, 10),
-    timeCost: parseInt(args.timeCost, 10),
-    parallelism: parseInt(args.parallelism, 10)
-  };
+function typeToString (type) {
+  switch (type) {
+    case argon2.argon2d:
+      return 'Argon2d'
+    case argon2.argon2id:
+      return 'Argon2id'
+    default:
+      return 'Argon2i'
+  }
+}
 
-  const generateSalt = args.salt === null ? argon2.generateSalt() :
-    Promise.resolve(new Buffer(args.salt));
+const hash = async (password, options) => {
+  // argparse sets an unset optional argument to null. WTF?
+  if (options.salt === null) {
+    delete options.salt
+  } else {
+    options.salt = Buffer.from(options.salt)
+  }
+  if (options.type === null) {
+    delete options.type
+  }
+  options.memoryCost = options.memoryCostAbs || (1 << options.memoryCostExp)
+  options.version = parseInt(options.version, 16)
 
-  return generateSalt.then(salt => {
-    const start = Date.now();
-    return argon2.hash(password, salt, options).then(hash => {
-      const delta = Date.now() - start;
+  const start = Date.now()
+  const hash = await argon2.hash(password, options)
+  const delta = Date.now() - start
 
-      if (args.quiet) {
-        console.info(hash);
-      } else {
-        console.info('Type: \t\t%s', options.argon2d ? 'Argon2d' : 'Argon2i');
-        console.info('Iterations: \t%d', options.timeCost);
-        console.info('Memory: \t%d KiB', 1 << options.memoryCost);
-        console.info('Parallelism: \t%d', options.parallelism);
-        console.info('Encoded: \t%s', hash);
-        console.info('%s seconds', (delta / 1000).toFixed(3));
+  if (options.raw) {
+    console.info(hash.toString('hex'))
+  } else if (options.encoded) {
+    console.info(hash)
+  } else {
+    console.info(`Type: \t\t${typeToString(options.type)}`)
+    console.info('Iterations: \t%d', options.timeCost)
+    console.info('Memory: \t%d KiB', options.memoryCost)
+    console.info('Parallelism: \t%d', options.parallelism)
+    console.info('Encoded: \t%s', hash)
+    console.info('%s seconds', (delta / 1000).toFixed(3))
 
-        return argon2.verify(hash, password).then(result => {
-          console.info('Verification %s', result ? 'ok' : 'failed');
-        });
-      }
-    });
-  });
-};
+    const result = argon2.verify(hash, password)
+    console.info('Verification %s', result ? 'ok' : 'failed')
+  }
+}
 
 const main = () => {
-  const defaults = argon2.defaults;
+  const {defaults} = argon2
 
   const parser = new argparse.ArgumentParser({
     prog: 'argon2',
-    usage: 'argon2 salt [-d] [-t iterations] [-m memory] [-p parallelism]' +
-      '\n\tPassword is read from stdin'
-  });
+    usage: './argon2 [-h] salt [-i|-d|-id] [-t iterations] [-m log2(memory in KiB) | -k memory in KiB] [-p parallelism] [-l hash length] [-e|-r] [-v (10|13)]' +
+      '\n  Password is read from stdin'
+  })
   parser.addArgument(['salt'], {
-    nargs: '?'
-  });
-  parser.addArgument(['-d', '--argon2d'], {
-    action: 'storeTrue',
-    dest: 'argon2d',
-    help: `Use Argon2d instead of Argon2i (default: ${defaults.argon2d})`
-  });
-  parser.addArgument(['-m'], {
-    defaultValue: defaults.memoryCost,
-    dest: 'memoryCost',
-    help: `Sets the memory usage to 2^N KiB (default: ${defaults.memoryCost})`,
-    metavar: 'N'
-  });
+    nargs: argparse.Const.OPTIONAL
+  })
+
+  const type = parser.addMutuallyExclusiveGroup()
+  type.addArgument(['-i'], {
+    action: 'storeConst',
+    constant: argon2.argon2i,
+    dest: 'type',
+    help: 'Use Argon2i (this is the default)'
+  })
+  type.addArgument(['-d'], {
+    action: 'storeConst',
+    constant: argon2.argon2d,
+    dest: 'type',
+    help: 'Use Argon2d instead of Argon2i'
+  })
+  type.addArgument(['-id'], {
+    action: 'storeConst',
+    constant: argon2.argon2id,
+    dest: 'type',
+    help: 'Use Argon2id instead of Argon2i'
+  })
+
   parser.addArgument(['-t'], {
     defaultValue: defaults.timeCost,
     dest: 'timeCost',
-    help: `Sets the number of iterations to N (default: ${defaults.timeCost})`,
+    help: `Sets the number of iterations to N (default ${defaults.timeCost})`,
     metavar: 'N'
-  });
+  })
+
+  const memory = parser.addMutuallyExclusiveGroup()
+  memory.addArgument(['-m'], {
+    defaultValue: Math.log2(defaults.memoryCost),
+    dest: 'memoryCostExp',
+    help: `Sets the memory usage to 2^N KiB (default ${Math.log2(defaults.memoryCost)})`,
+    metavar: 'N',
+    type: 'int'
+  })
+  memory.addArgument(['-k'], {
+    defaultValue: defaults.memoryCost,
+    dest: 'memoryCostAbs',
+    help: `Sets the memory usage to N KiB (default ${defaults.memoryCost})`,
+    metavar: 'N',
+    type: 'int'
+  })
+
   parser.addArgument(['-p'], {
     defaultValue: defaults.parallelism,
     dest: 'parallelism',
-    help: `Sets parallelism to N threads (default: ${defaults.parallelism})`,
-    metavar: 'N'
-  });
-  parser.addArgument(['-q'], {
-    action: 'storeTrue',
-    dest: 'quiet',
-    help: `Do not output timing information (default: false)`
-  });
-  const args = parser.parseArgs();
+    help: `Sets parallelism to N threads (default ${defaults.parallelism})`,
+    metavar: 'N',
+    type: 'int'
+  })
+  parser.addArgument(['-l'], {
+    defaultValue: defaults.hashLength,
+    dest: 'hashLength',
+    help: `Sets hash output length to N bytes (default ${defaults.hashLength})`,
+    metavar: 'N',
+    type: 'int'
+  })
 
-  let password = new Buffer(0);
+  const output = parser.addMutuallyExclusiveGroup()
+  output.addArgument(['-e'], {
+    action: 'storeTrue',
+    dest: 'encoded',
+    help: 'Output only encoded hash'
+  })
+  output.addArgument(['-r'], {
+    action: 'storeTrue',
+    dest: 'raw',
+    help: 'Output only the raw bytes of the hash'
+  })
+
+  parser.addArgument(['-v'], {
+    choices: ['10', '13'],
+    defaultValue: '13',
+    dest: 'version',
+    help: 'Argon2 version (defaults to the most recent version, currently 13)',
+    metavar: '(10|13)'
+  })
+
+  const args = parser.parseArgs()
+
+  let password = Buffer.alloc(0)
   process.stdin.on('data', data => {
-    password = Buffer.concat([password, data]);
-  });
+    password = Buffer.concat([password, data])
+  })
   process.stdin.on('end', () => {
     hash(password, args).catch(err => {
-      console.error('Error: %s', err.message);
+      console.error('Error: %s', err.message)
 
       // invalid argument error
-      process.exit(22);
-    });
-  });
-};
+      process.exit(22)
+    })
+  })
+}
 
-main();
+main()

@@ -8,7 +8,7 @@ CLI utility for [node-argon2](https://github.com/ranisalt/node-argon2).
 Check requirements for [node-argon2](https://github.com/ranisalt/node-argon2)
 prior to installing this.
 
-**node-argon2-cli** works only and is tested against Node >=4.0.0.
+**node-argon2-cli** works only and is tested against Node >=8.0.0.
 
 
 ### Usage

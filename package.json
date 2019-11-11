@@ -1,6 +1,6 @@
 {
   "name": "argon2-cli",
-  "version": "0.19.2",
+  "version": "0.25.1",
   "description": "A CLI tool for argon2 hashing",
   "main": "cli.js",
   "bin": "cli.js",
@@ -26,13 +26,13 @@
   },
   "homepage": "https://github.com/ranisalt/node-argon2-cli#readme",
   "dependencies": {
-    "argon2": "^0.19.2",
+    "argon2": "^0.25.1",
     "argparse": "^1.0.10"
   },
   "devDependencies": {
-    "mocha": "^5.2.0"
+    "mocha": "^6.2.2"
   },
   "engines": {
-    "node": ">=7.6.0"
+    "node": ">=8.0.0"
   }
 }
